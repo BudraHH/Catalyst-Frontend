@@ -1,0 +1,253 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+@keyframes moveZ {
+  0% {
+    transform: translateZ(-500px);
+  }
+  100% {
+    transform: translateZ(0px);
+  }
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .animate-moveZ {
+    animation: moveZ 2s ease-in-out infinite;
+    transform-style: preserve-3d;  /* Ensures 3D effect */
+  }
+}
+
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: black;
+  background-color: #ffffff;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+
+  /* Center content horizontally */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: fit-content;
+}
+
+body, html {
+  overflow-x: hidden;
+}
+
+@keyframes borderLight {
+  0% {
+    border-image-source: linear-gradient(45deg, #00425a, transparent);
+  }
+  25% {
+    border-image-source: linear-gradient(135deg, #00125a, transparent);
+  }
+  50% {
+    border-image-source: linear-gradient(225deg, #00425a, transparent);
+  }
+  75% {
+    border-image-source: linear-gradient(315deg, #00125a, transparent);
+  }
+  100% {
+    border-image-source: linear-gradient(45deg, #00425a, transparent);
+  }
+}
+
+.animate-border-light {
+  border-width: 3px;
+  border-style: solid;
+  border-image-slice: 1;
+  animation: borderLight 3s linear infinite;
+}
+
+/* Extra-Small Screens (xs: < 475px) */
+@media (max-width: 474px) {
+  h1 { font-size: 1.25rem; }
+  h2 { font-size: 1.125rem; }
+  h3 { font-size: 1rem; }
+  h4 { font-size: 0.9rem; }
+  h5 { font-size: 0.75rem; }
+  h6 { font-size: 0.7rem; }
+  p  { font-size: 0.875rem; }
+  span { font-size: 0.75rem; }
+}
+
+/* Small Screens (sm: 475px - 767px) */
+@media (min-width: 475px) and (max-width: 767px) {
+  h1 { font-size: 1.5rem; }
+  h2 { font-size: 1.25rem; }
+  h3 { font-size: 1rem; }
+  h4 { font-size: 1rem; } /* Fix: Previously set to 0rem */
+  h5 { font-size: 0.875rem; }
+  h6 { font-size: 0.75rem; }
+  p  { font-size: 1rem; }
+  span { font-size: 0.75rem; }
+}
+
+/* Medium Screens (md: 768px - 1023px) */
+@media (min-width: 768px) and (max-width: 1023px) {
+  h1 { font-size: 2rem; }
+  h2 { font-size: 1.75rem; }
+  h3 { font-size: 1.5rem; }
+  h4 { font-size: 1.25rem; }
+  h5 { font-size: 1.125rem; }
+  h6 { font-size: 1rem; }
+  p  { font-size: 1.125rem; }
+  span { font-size: 0.8rem; }
+}
+
+/* Large Screens (lg: 1024px - 1279px) */
+@media (min-width: 1024px) and (max-width: 1279px) {
+  h1 { font-size: 2.5rem; }
+  h2 { font-size: 2.25rem; }
+  h3 { font-size: 2rem; }
+  h4 { font-size: 1.75rem; }
+  h5 { font-size: 1.5rem; }
+  h6 { font-size: 1.25rem; }
+  p  { font-size: 1.25rem; }
+  span { font-size: 0.8rem; }
+}
+
+/* Extra-Large Screens (xl: ≥ 1280px) */
+@media (min-width: 1280px) {
+  h1 { font-size: 3rem; }
+  h2 { font-size: 2.75rem; }
+  h3 { font-size: 2.5rem; }
+  h4 { font-size: 2rem; }
+  h5 { font-size: 1.75rem; }
+  h6 { font-size: 1.5rem; }
+  p  { font-size: 1.5rem; }
+  span { font-size: 0.9rem; }
+}
+
+/* Custom scrollbar - thin and sleek */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px; /* Thin scrollbar width */
+  height: 6px; /* Thin horizontal scrollbar */
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent; /* Transparent track background */
+  border-radius: 10px; /* Smooth, rounded corners */
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #1e293b; /* Dark gray thumb */
+  border-radius: 10px;
+  border: 2px solid transparent; /* Border to create a clean effect */
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #3b82f6; /* Blue thumb on hover */
+  transition: background-color 0.3s ease; /* Smooth transition */
+}
+
+/* Firefox specific */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #1e293b transparent; /* Thumb and track color */
+}
+
+/* Stylish scrollbar with gradient */
+.stylish-scrollbar::-webkit-scrollbar {
+  width: 6px; /* Slightly wider to make it visible */
+  height: 6px;
+}
+
+.stylish-scrollbar::-webkit-scrollbar-track {
+  background: #1f2937; /* Dark track color */
+  border-radius: 10px;
+}
+
+.stylish-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(45deg, #3b82f6, #9333ea); /* Gradient thumb */
+  border-radius: 10px;
+}
+
+.stylish-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(45deg, #9333ea, #6366f1); /* Hover effect */
+  transition: background 0.3s ease; /* Smooth hover transition */
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for Firefox */
+.hide-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleFadeIn {
+  0% {
+    opacity: 0;
+    transform: scale(2);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes fadeInScale {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes fadeInSlide {
+  0% {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeInSlideUp {
+  0% {
+    opacity: 0;
+    transform: translateY(50px);
+    animation-duration: 0.5s;
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.custom-ease {
+  animation-timing-function: cubic-bezier(0.175, 0.885, 0.320, 1.275);
+}
