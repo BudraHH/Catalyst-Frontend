@@ -1,9 +1,10 @@
-import { useState } from "react";
+import {useEffect, useState} from "react";
 import { FaLock, FaEnvelope, FaEye, FaEyeSlash } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { setUserDetails } from "../../store/userSlice.js";
-import backendAPI from "../../backendApi/index.js";
+import axios from 'axios';
+import backendApi from "../../backendApi/index.js";
 
 const SignIn = () => {
     const [email, setEmail] = useState("");
@@ -23,36 +24,72 @@ const SignIn = () => {
         const signInData = { email, password };
 
         try {
-            const response = await fetch(backendAPI.signIn.url, {
-                method: backendAPI.signIn.method,
-                credentials: "include",
-                headers: {
-                    "Content-Type": "application/json",
-                    Accept: "application/json",
-                },
-                body: JSON.stringify(signInData),
-            });
 
-            const responseData = await response.json();
-            if (!response.ok) {
-                setErrorMessage(responseData.message || `Sign-in failed (Status: ${response.status})`);
-                return;
-            }
+            // const response = await axios.({
+            //     method: backendAPI.signIn.method.toLowerCase(),
+            //     url: backendAPI.signIn.url,
+            //     headers: {
+            //         "Content-Type": "application/json",
+            //         Accept: "application/json",
+            //     },
+            //     data: signInData,
+            //     withCredentials: true,
+            // });
+            //
 
-            if (responseData.success) {
-                const {email, accessToken} = responseData;
-                console.log("Email:", email, "Token:", accessToken);
+            const response = await axios.post(backendApi.signIn, signInData);
+            const responseData = response.data;
+
+            if (responseData && responseData.token) {
+                const accessToken = responseData.token;
+                const userEmail = responseData.email || email;
+                console.log("Email:", userEmail, "Token:", accessToken);
 
                 localStorage.setItem("access_token", accessToken);
+                dispatch(setUserDetails({ email: userEmail, accessToken }));
 
-                dispatch(setUserDetails({email, accessToken}));
+                navigate("/");
+            } else {
+                console.error("Sign-in response missing token:", responseData);
+                setErrorMessage(responseData.message || "Sign-in succeeded but received invalid data.");
             }
 
         } catch (error) {
-            console.error("Error during sign-in fetch or processing:", error);
-            setErrorMessage("An error occurred connecting to the server. Please try again later.");
+            console.error("Error during sign-in request:", error);
+            let message = "An error occurred connecting to the server. Please try again later.";
+
+            // Axios provides detailed error information
+            if (axios.isAxiosError(error)) {
+                if (error.response) {
+                    // The request was made and the server responded with a status code
+                    // that falls out of the range of 2xx
+                    console.error("Error data:", error.response.data);
+                    console.error("Error status:", error.response.status);
+                    // Use the error message from the backend response if available
+                    message = error.response.data?.message // Use message from backend DTO
+                        || error.response.data?.error   // Or error field if that's used
+                        || `Sign-in failed (Status: ${error.response.status})`;
+                } else if (error.request) {
+                    // The request was made but no response was received
+                    console.error("Error request:", error.request);
+                    message = "No response from server. Check network connection or server status.";
+                } else {
+                    // Something happened in setting up the request that triggered an Error
+                    message = error.message;
+                }
+            } else {
+                // Handle non-Axios errors
+                message = error.message || message;
+            }
+            setErrorMessage(message);
+
         } finally {
             setIsLoading(false);
+            const isUserLoggedIn = !!localStorage.getItem("access_token");
+            if (isUserLoggedIn) {
+                navigate("/");
+            }
+
         }
     };
 

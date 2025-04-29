@@ -1,14 +1,16 @@
-import { Routes, Route, Navigate,  } from 'react-router-dom';
+import {Routes, Route, Navigate, useNavigate,} from 'react-router-dom';
 import SignInPage from './pages/auth/SignIn.jsx';
 import HomePage from "./pages/main/HomePage.jsx";
 import XmlResolverUploader from "./pages/main/sections/XmlResolverUploader.jsx"; // Child page 1
 import GitHubConnector from "./pages/main/sections/GitHubConnector.jsx";
+import {useEffect} from "react";
 
 function App() {
-
+    const navigate = useNavigate();
     // const isUserLoggedIn = useSelector((state) => !!state.user.user);
-    // const isUserLoggedIn = !!localStorage.getItem("access_token");
-    const isUserLoggedIn = true;
+    const isUserLoggedIn = !!localStorage.getItem("access_token");
+    // const isUserLoggedIn = true;
+
 
     console.log("User Logged In Status:", isUserLoggedIn);
     return (

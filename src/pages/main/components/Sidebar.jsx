@@ -1,21 +1,71 @@
-import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-// Import desired icons (ensure react-icons is installed)
-import { FaSignOutAlt, FaGithub, FaCloudUploadAlt, FaCode } from 'react-icons/fa'; // Examples
-
-// Define navigation items with icons
+import { FaSignOutAlt, FaGithub, FaCloudUploadAlt } from 'react-icons/fa';
+import backendApi from "../../../backendApi/index.js";
+import axios from "axios";
 const navigationItems = [
     { label: 'LSK Resolver', path: '/lsk-resolve', icon: FaCloudUploadAlt },
     { label: 'GitHub Connect', path: '/github-connect', icon: FaGithub },
-    // Add other primary navigation items here if needed
 ];
 
-// Separate logout item
-const logoutItem = { label: 'Logout', path: '/logout', icon: FaSignOutAlt };
+
 
 // --- Sidebar Component ---
 const Sidebar = () => {
     const location = useLocation(); // Hook to get current path
+
+    const token = localStorage.getItem("access_token");
+
+    const handleSignOut = async () => {
+
+        if (!token || typeof token !== 'string' || token.trim() === '') {
+            console.error("Sign-out attempt with invalid token provided to function.");
+            return { success: false, message: "Authentication token is required." };
+        }
+
+        const signOutUrl = backendApi.signOut;
+        try {
+            // 2. Make the Axios request
+            const response = await axios({
+                method: "post",
+                url: signOutUrl,
+                headers: {
+                     Authorization: `Bearer ${token}`,
+                     "Content-Type": "application/json",
+                },
+                  });
+
+            const responseData = response.data;
+            console.log("Sign-out successful:", responseData.message);
+            localStorage.removeItem("access_token");
+            return { success: true, message: responseData.message || "Sign-out successful." };
+
+        } catch (error) {
+            // 4. Handle Errors
+            console.error("Error during sign-out request:", error);
+            let message = "An error occurred during sign-out. Please try again.";
+
+            if (axios.isAxiosError(error)) {
+                if (error.response) {
+                    // Server responded with an error status (e.g., 400 if token header was missing)
+                    console.error("Sign-out Error data:", error.response.data);
+                    console.error("Sign-out Error status:", error.response.status);
+                    // Use message from backend DTO if available
+                    message = error.response.data?.message || `Sign-out failed (Status: ${error.response.status})`;
+                } else if (error.request) {
+                    // No response received
+                    message = "No response from server during sign-out.";
+                } else {
+                    // Request setup error
+                    message = error.message;
+                }
+            } else {
+                message = error.message || message;
+            }
+
+            return { success: false, message: message };
+        }
+    };
+
 
     return (
 
@@ -57,16 +107,15 @@ const Sidebar = () => {
 
             {/* Logout Area at the bottom */}
             <div className="pt-4 mt-auto p-4 border-t border-gray-300"> {/* Lighter border */}
-                <Link
-                    to={logoutItem.path}
+                <button
+                    onClick={handleSignOut}
                     // Styling similar to inactive nav links
-                    className="flex items-center justify-center px-3 py-2 rounded-md text-sm font-medium border border-red-500 group
-                               text-gray-600 hover:bg-red-500 hover:text-white
+                    className="w-full gap-2 flex items-center justify-center px-3 py-2 rounded-md text-sm font-medium border border-red-500 group
+                               text-gray-600 hover:bg-red-700 hover:text-white
                                transition-colors duration-150 ease-in-out group"
                 >
-                    {logoutItem.icon && <logoutItem.icon className="mr-3 h-5 w-5 flex-shrink-0 text-gray-400 group-hover:text-white" />}
-                    <span>{logoutItem.label}</span>
-                </Link>
+                    <FaSignOutAlt/><span>Sign out</span>
+                </button>
             </div>
         </aside>
     );

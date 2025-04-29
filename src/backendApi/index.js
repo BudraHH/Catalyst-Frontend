@@ -2,11 +2,12 @@ const backendDomain = "http://localhost:8080/api";
 
 const backendApi = {
 
-    signIn: `${backendDomain}/sign-in`,
-    signOut: `${backendDomain}/sign-out`,
+    signIn: `${backendDomain}/auth/signin`,
+    signOut: `${backendDomain}/auth/signout`,
 
-    lskResolver: `${backendDomain}/lsk/process-xml-upload`,
 
+    lskResolver: `${backendDomain}/logical-seed-key/resolve`,
 }
 
 export default backendApi;
+

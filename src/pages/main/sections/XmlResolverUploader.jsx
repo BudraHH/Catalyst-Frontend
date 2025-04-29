@@ -1,25 +1,25 @@
 // src/components/XmlResolverUploader.jsx
-import { useState, useRef, useEffect } from 'react'; // Added useEffect
+import { useState, useRef, useEffect } from 'react';
 import {
     FaFileUpload, FaInfoCircle, FaSpinner, FaCheckCircle, FaTimesCircle,
     FaCodeBranch, FaGitAlt, FaFolderOpen, FaDownload, FaEye, FaEyeSlash
-} from 'react-icons/fa'; // Added FaEye/FaEyeSlash
-import Api from "../../../backendApi/index.js"; // Ensure correct path
+} from 'react-icons/fa';
+import backendApi from "../../../backendApi/index.js"; // Ensure correct path (using one import)
 import axios from "axios";
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-// Using a light theme for the code to better match the overall theme
 import { prism } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import backendApi from "../../../backendApi/index.js"; // Light theme example
 
-// Helper function to sanitize filename
+// Helper function to sanitize filename (no changes needed here)
 const sanitizeFilename = (name) => {
     if (!name || typeof name !== 'string') return 'download.xml';
-    // Replace potentially problematic characters with underscores
-    return name.replace(/[\s<>:"/\\|?*]+/g, '_').replace(/\.[^/.]+$/, ""); // Remove extension for base name
+    return name.replace(/[\s<>:"/\\|?*]+/g, '_').replace(/\.[^/.]+$/, "");
 };
 
+// --- Define the delay constant ---
+const STATUS_CLEAR_DELAY_SECONDS = 5;
+
 const XmlResolverUploader = () => {
-    // Input states
+    // Input states (no changes)
     const [selectedFile, setSelectedFile] = useState(null);
     const [fileName, setFileName] = useState('No XML file selected');
     const [branchName, setBranchName] = useState('');
@@ -28,47 +28,80 @@ const XmlResolverUploader = () => {
 
     // UI/Process states
     const [isLoading, setIsLoading] = useState(false);
-    const [uploadStatus, setUploadStatus] = useState({ state: 'idle', message: '' }); // idle, loading, success, error
+    const [uploadStatus, setUploadStatus] = useState({ state: 'idle', message: '' });
     const [previewData, setPreviewData] = useState('');
     const [showPreview, setShowPreview] = useState(false);
+    // --- New state for the countdown timer ---
+    const [countdownSeconds, setCountdownSeconds] = useState(0);
 
     const fileInputRef = useRef(null);
+    const intervalRef = useRef(null); // Ref to store interval ID for cleanup
 
-    // Effect to clear status message after a delay
+    // Effect to manage status message clearing and countdown
     useEffect(() => {
-        let timeoutId;
+        // Clear any existing interval when effect runs or component unmounts
+        const clearExistingInterval = () => {
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+                intervalRef.current = null;
+            }
+        };
+
         if (uploadStatus.state === 'success' || uploadStatus.state === 'error') {
-            timeoutId = setTimeout(() => {
-                setUploadStatus({ state: 'idle', message: '' });
-            }, 5000); // Clear message after 5 seconds
+            clearExistingInterval(); // Clear previous interval if any
+            setCountdownSeconds(STATUS_CLEAR_DELAY_SECONDS); // Start countdown
+
+            intervalRef.current = setInterval(() => {
+                setCountdownSeconds(prevSeconds => {
+                    const newSeconds = prevSeconds - 1;
+                    if (newSeconds <= 0) {
+                        // Countdown finished: clear interval, reset status and filename
+                        clearExistingInterval();
+                        setUploadStatus({ state: 'idle', message: '' });
+                        // Reset filename only after message clears (optional, keep if desired)
+                        // Consider if you *always* want to reset filename here
+                        // If not, remove the next line.
+                        setFileName('No XML file selected');
+                        return 0; // Ensure countdown state is 0
+                    }
+                    return newSeconds; // Continue countdown
+                });
+            }, 1000); // Update every second
+
+        } else if (uploadStatus.state === 'idle' || uploadStatus.state === 'loading') {
+            // If status changes away from success/error (e.g., new loading), clear timer
+            clearExistingInterval();
+            setCountdownSeconds(0); // Ensure countdown is reset
         }
-        // Cleanup function
-        return () => clearTimeout(timeoutId);
+
+        // Cleanup function: essential to clear interval on unmount or before effect re-runs
+        return () => {
+            clearExistingInterval();
+        };
     }, [uploadStatus.state]); // Re-run only when the status *state* changes
 
-    // --- Handlers ---
+    // --- Handlers (no changes needed in these handlers themselves) ---
 
     const handleFileChange = (event) => {
         const file = event.target.files[0];
-        // Reset everything related to previous results
         setPreviewData('');
         setShowPreview(false);
+        // Explicitly set status to idle to clear any existing message/timer immediately
         setUploadStatus({ state: 'idle', message: '' });
 
         if (file) {
             if (file.type === 'text/xml' || file.name.toLowerCase().endsWith('.xml')) {
                 setSelectedFile(file);
                 setFileName(file.name);
-                setRelativeFilePath(file.name); // Pre-fill relative path
+                setRelativeFilePath(file.name);
             } else {
-                // Invalid file type
                 setSelectedFile(null);
                 setFileName('Invalid file type (XML only)');
                 setRelativeFilePath('');
+                // Set error status (will trigger the useEffect for timer)
                 setUploadStatus({ state: 'error', message: 'Please select an XML file (.xml).' });
             }
         } else {
-            // No file selected (e.g., user cancelled)
             setSelectedFile(null);
             setFileName('No XML file selected');
             setRelativeFilePath('');
@@ -80,16 +113,17 @@ const XmlResolverUploader = () => {
     };
 
     const handleShowPreview = () => {
-        setShowPreview(prev => !prev); // Toggle previous state
+        setShowPreview(prev => !prev);
     };
 
     const handleDownload = () => {
         if (!previewData) {
             console.error("No preview data available to download.");
+            // Set error status (will trigger the useEffect for timer)
             setUploadStatus({ state: 'error', message: 'No resolved data available to download.' });
             return;
         }
-        const baseName = sanitizeFilename(fileName); // Sanitize and remove extension
+        const baseName = sanitizeFilename(fileName);
         const downloadFilename = `${baseName}_resolved.xml`;
 
         try {
@@ -102,34 +136,32 @@ const XmlResolverUploader = () => {
             link.click();
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
-            // Set a temporary download success message (optional)
-            // setUploadStatus({ state: 'success', message: `Downloaded ${downloadFilename}` });
         } catch (error) {
             console.error("Error during download creation:", error);
+            // Set error status (will trigger the useEffect for timer)
             setUploadStatus({ state: 'error', message: 'Could not initiate download.' });
         }
     };
 
     const handleSubmit = async () => {
-        // Clear previous results/status before submitting
         setShowPreview(false);
         setPreviewData('');
-        setUploadStatus({ state: 'idle', message: '' }); // Clear previous status
+        // Set loading status (will clear timer via useEffect)
+        setUploadStatus({ state: 'loading', message: 'Resolving placeholders...' });
+        setIsLoading(true); // Keep isLoading separate for disabling inputs
 
-        // Validation
         if (!selectedFile || !branchName || !repositoryUrl || !relativeFilePath) {
             let errorMsg = 'Please complete all fields.';
             if (!selectedFile) errorMsg = 'Please select an XML file.';
             else if (!repositoryUrl) errorMsg = 'Please enter a repository URL.';
             else if (!branchName) errorMsg = 'Please enter a branch name.';
             else if (!relativeFilePath) errorMsg = 'Please enter the relative file path.';
+            // Set error status (will trigger useEffect timer)
             setUploadStatus({ state: 'error', message: errorMsg });
+            setIsLoading(false); // Stop loading on validation fail
             return;
         }
-        if (isLoading) return; // Prevent double-submit
-
-        setIsLoading(true);
-        setUploadStatus({ state: 'loading', message: 'Resolving placeholders...' });
+        // Note: isLoading check is implicitly handled by the `setUploadStatus` setting above
 
         const formData = new FormData();
         formData.append('xmlFile', selectedFile);
@@ -137,71 +169,75 @@ const XmlResolverUploader = () => {
         formData.append('repository', repositoryUrl);
         formData.append('relativePath', relativeFilePath);
 
-        console.log("--- Submitting FormData ---"); // Keep logs for debugging if needed
-        // ... (optional logging of form data) ...
+        console.log("--- Submitting FormData ---");
         console.log(`Target API: ${backendApi.lskResolver}`);
         console.log("--------------------------");
 
+        const token = localStorage.getItem("access_token");
         try {
-            const response = await axios.post(backendApi.lskResolver, formData);
-            const result = response.data; // Expect { message?, data?, error? }
+            const response = await axios({
+                method: "post",
+                url: backendApi.lskResolver,
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+                data : formData,
+
+            });
+
+            const result = response.data;
 
             if (response.status === 200 && result && result.data && typeof result.data === 'string') {
                 setPreviewData(result.data);
+                // Set success status (will trigger useEffect timer)
                 setUploadStatus({ state: 'success', message: result.message || `Successfully resolved ${fileName}` });
                 console.log("--- API Success ---");
             } else {
-                // Handle cases where status is 200 but data is missing/wrong format
                 throw new Error(result?.message || result?.error || 'Received unexpected data structure from server.');
             }
 
-            // Clear fields on success, except fileName (needed for download default)
+            // Clear input fields on success, but keep filename for potential download name
             setSelectedFile(null);
             setBranchName('');
             setRepositoryUrl('');
             setRelativeFilePath('');
             if (fileInputRef.current) {
-                fileInputRef.current.value = ''; // Reset file input
+                fileInputRef.current.value = '';
             }
+            // Don't reset fileName here, keep it for download default
 
         } catch (error) {
             console.error("--- API Request Failed ---", error);
             let errorMessage = 'An unknown processing error occurred.';
-            if (axios.isAxiosError(error)) { // Check if it's an Axios error
+            if (axios.isAxiosError(error)) {
                 if (error.response) {
-                    // Request made, server responded with non-2xx status
-                    console.error("Error Status:", error.response.status);
-                    console.error("Error Data:", error.response.data);
-                    // Try to extract error from backend's JSON response ({ error: '...' })
                     errorMessage = error.response.data?.error || `Server Error (${error.response.status})`;
                 } else if (error.request) {
-                    // Request made, but no response received (network issue, server down)
-                    console.error("Error Request:", error.request);
                     errorMessage = 'No response from server. Check network or backend status.';
                 } else {
-                    // Error setting up the request
                     errorMessage = error.message;
                 }
             } else if (error instanceof Error) {
-                // Handle non-Axios errors (like the one thrown above for bad data structure)
                 errorMessage = error.message;
             }
+            // Set error status (will trigger useEffect timer)
             setUploadStatus({ state: 'error', message: errorMessage });
-            setPreviewData(''); // Clear preview data on error
+            setPreviewData('');
         } finally {
             setIsLoading(false); // Ensure loading is always turned off
         }
     };
 
-    // Determine if actions should be enabled
+    // Determine if actions should be enabled (no changes)
     const canSubmit = !!selectedFile && !!branchName && !!repositoryUrl && !!relativeFilePath && !isLoading;
     const canPreviewOrDownload = uploadStatus.state === 'success' && !!previewData && !isLoading;
 
     // --- Render ---
     return (
-        <div className="space-y-6"> {/* Outer spacing container */}
-            {/* Input Form Section */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-5"> {/* Added more padding/spacing */}
+        <div className="space-y-6">
+            {/* Input Form Section (Structure remains the same) */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-5">
+                {/* Header, Input Fields Group, File Input Section (no changes needed here) */}
                 {/* Header */}
                 <div className="pb-4 border-b border-gray-200">
                     <h2 className="text-xl font-semibold text-gray-800">
@@ -275,28 +311,41 @@ const XmlResolverUploader = () => {
                     </div>
                 </div>
 
-                {/* Status Message Area */}
-                <div className="min-h-[50px] flex items-center"> {/* Reserve space */}
+
+                {/* Status Message Area - MODIFIED */}
+                <div className="min-h-[50px] flex items-center">
                     {uploadStatus.state !== 'idle' && (
                         <div className={`flex items-center space-x-2 p-3 text-sm rounded-md border w-full ${
                             uploadStatus.state === 'success' ? 'bg-green-50 border-green-200 text-green-700' :
                                 uploadStatus.state === 'error' ? 'bg-red-50 border-red-200 text-red-700' :
-                                    uploadStatus.state === 'loading' ? 'bg-blue-50 border-blue-200 text-blue-700' : // Distinct loading style
-                                        'hidden'
+                                    uploadStatus.state === 'loading' ? 'bg-blue-50 border-blue-200 text-blue-700' :
+                                        'hidden' // Should not happen if state is not idle
                         }`}>
+                            {/* Icon based on state */}
                             {uploadStatus.state === 'success' && <FaCheckCircle className="flex-shrink-0 h-5 w-5" />}
                             {uploadStatus.state === 'error' && <FaInfoCircle className="flex-shrink-0 h-5 w-5" />}
                             {uploadStatus.state === 'loading' && <FaSpinner className="flex-shrink-0 h-5 w-5 animate-spin" />}
-                            <span className="flex-1 text-center">{uploadStatus.message}</span> {/* Center message */}
+
+                            {/* Message */}
+                            <span className="flex-1">{uploadStatus.message}</span>
+
+                            {/* --- Display Countdown Timer --- */}
+                            {(uploadStatus.state === 'success' || uploadStatus.state === 'error') && countdownSeconds > 0 && (
+                                <span className={`ml-2 font-medium text-sm  rounded  ${uploadStatus.state === 'success' ? 'text-green-700' : 'text-red-700'} `}>
+                                    View will end in ({countdownSeconds}s)
+                                </span>
+                            )}
+                            {/* --- End Countdown Timer Display --- */}
+
                         </div>
                     )}
                 </div>
 
 
-                {/* Action Buttons */}
-                <div className="pt-3 flex flex-wrap gap-4 justify-end items-center border-t border-gray-200"> {/* Aligned to end */}
-                    {/* Preview/Download Buttons appear on success */}
-                    {canPreviewOrDownload && (
+                {/* Action Buttons (Structure remains the same) */}
+                <div className="pt-3 flex flex-wrap gap-4 justify-end items-center border-t border-gray-200">
+                     {/* Preview/Download Buttons appear on success */}
+                     {canPreviewOrDownload && (
                         <>
                             <button type="button" onClick={handleShowPreview}
                                     className={`inline-flex items-center justify-center px-4 py-2 text-sm font-medium border border-gray-300 rounded-md shadow-sm transition duration-150 focus:outline-none focus:ring-1 focus:ring-offset-1 focus:ring-gray-500 ${
@@ -312,74 +361,90 @@ const XmlResolverUploader = () => {
                             >
                                 <FaDownload className="-ml-1 mr-2 h-4 w-4" />
                                 Download XML
+                                </button>
+                                </>
+                                )}
+
+                            {/* Submit Button */}
+                            <button type="button" onClick={handleSubmit} disabled={!canSubmit}
+                                    className={`inline-flex items-center justify-center px-6 py-2 text-sm font-medium border border-transparent rounded-md shadow-sm text-white transition duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-800 ${
+                                        canSubmit ? 'bg-gray-800 hover:bg-black' : 'bg-gray-300 cursor-not-allowed'
+                                    }`}
+                            >
+                                {isLoading ? (
+                                    <>
+                                        <FaSpinner className="animate-spin -ml-1 mr-2 h-4 w-4" />
+                                        Processing...
+                                    </>
+                                ) : (
+                                    'Resolve Placeholders'
+                                )}
                             </button>
-                        </>
+                        </div>
+                        </div>
+
+                    {/* Preview Section (Structure remains the same) */}
+                    {showPreview && previewData && (
+                        <div className="bg-gray-50 rounded-lg shadow-sm border border-gray-200 p-0 w-full mt-6 overflow-hidden">
+                            {/* Preview Header */}
+                            <div className="px-4 py-3 border-b border-gray-200 ">
+                                <div className="pb-4 border-b border-gray-200 flex flex-row justify-between w-full">
+                                    <div>
+                                        <h2 className="text-xl font-semibold text-gray-800">
+                                            Resolved XML file preview
+                                        </h2>
+                                        <p className="text-sm text-gray-500 mt-1">
+                                            Preview of the XML file after resolving placeholders.
+                                        </p>
+                                    </div>
+                                    <div className={`flex flex-row gap-2 py-2`}>
+                                        <button type="button" onClick={handleDownload}
+                                                className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium border border-transparent rounded-md shadow-sm text-white bg-gray-600 hover:bg-gray-700 transition duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                                        >
+                                            <FaDownload className="-ml-1 mr-2 h-4 w-4" />
+                                            Download XML
+                                        </button>
+                                        <button type="button" onClick={handleShowPreview}
+                                                className={`inline-flex items-center justify-center px-4 py-2 text-sm font-medium border border-gray-300 rounded-md shadow-sm transition duration-150 focus:outline-none focus:ring-1 focus:ring-offset-1 focus:ring-gray-500 ${
+                                                    showPreview ? 'bg-gray-200 text-gray-800 hover:bg-gray-300' : 'bg-white text-gray-700 hover:bg-gray-50'
+                                                }`}
+                                        >
+                                            Close preview
+                                        </button>
+                                    </div>
+
+                                </div>
+                                {/* Syntax Highlighter Area */}
+                                <div className="overflow-auto text-sm max-h-[60vh] bg-white">
+                                    <SyntaxHighlighter
+                                        language="xml"
+                                        style={prism}
+                                        wrapLines={true}
+                                        showLineNumbers={true}
+                                        customStyle={{
+                                            margin: 0,
+                                            padding: '1rem',
+                                            fontSize: '0.875rem',
+                                            borderRadius: '0 0 0.5rem 0.5rem',
+                                            border: 'none',
+                                            boxShadow: 'none'
+                                        }}
+                                        lineNumberStyle={{
+                                            color: '#9ca3af',
+                                            minWidth: '2.5em',
+                                            paddingRight: '1em',
+                                            textAlign: 'right',
+                                            userSelect: 'none',
+                                        }}
+                                    >
+                                        {previewData}
+                                    </SyntaxHighlighter>
+                                </div>
+                            </div>
+                        </div>
                     )}
-
-                    {/* Submit Button */}
-                    <button type="button" onClick={handleSubmit} disabled={!canSubmit}
-                            className={`inline-flex items-center justify-center px-6 py-2 text-sm font-medium border border-transparent rounded-md shadow-sm text-white transition duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-800 ${
-                                canSubmit ? 'bg-gray-800 hover:bg-black' : 'bg-gray-300 cursor-not-allowed'
-                            }`}
-                    >
-                        {isLoading ? (
-                            <>
-                                <FaSpinner className="animate-spin -ml-1 mr-2 h-4 w-4" />
-                                Processing...
-                            </>
-                        ) : (
-                            'Resolve Placeholders'
-                        )}
-                    </button>
                 </div>
-            </div>
+                );
+                };
 
-            {/* Preview Section - Only rendered when showPreview and previewData are true */}
-            {showPreview && previewData && (
-                <div className="bg-gray-50 rounded-lg shadow-sm border border-gray-200 p-0 w-full mt-6 overflow-hidden"> {/* Use lighter bg for preview */}
-                    {/* Preview Header */}
-                    <div className="px-4 py-3 border-b border-gray-200 flex justify-between items-center bg-gray-100">
-                        <h3 className="text-md font-semibold text-gray-700">
-                            Resolved XML Preview
-                        </h3>
-                        <button type="button" onClick={handleShowPreview} title="Close Preview"
-                                className="text-gray-400 hover:text-gray-600 focus:outline-none text-xl leading-none p-1 -mr-1" aria-label="Close Preview">
-                            <FaTimesCircle/>
-                        </button>
-                    </div>
-                    {/* Syntax Highlighter Area */}
-                    {/* Added max-height and scrollbar */}
-                    <div className="overflow-auto text-sm max-h-[60vh] bg-white">
-                        <SyntaxHighlighter
-                            language="xml"
-                            style={prism} // Use the imported light theme
-                            wrapLines={true}
-                            showLineNumbers={true}
-                            customStyle={{
-                                margin: 0,
-                                padding: '1rem',
-                                // Removed background override to use 'prism' style's background
-                                // backgroundColor: '#f9fafb',
-                                fontSize: '0.875rem', // text-sm equivalent
-                                borderRadius: '0 0 0.5rem 0.5rem', // Round bottom corners only
-                                border: 'none',
-                                boxShadow: 'none'
-                            }}
-                            lineNumberStyle={{ // Style line numbers if needed
-                                color: '#9ca3af', // gray-400
-                                minWidth: '2.5em',
-                                paddingRight: '1em',
-                                textAlign: 'right',
-                                userSelect: 'none',
-                            }}
-                        >
-                            {previewData}
-                        </SyntaxHighlighter>
-                    </div>
-                </div>
-            )}
-        </div> // End outer spacing container
-    );
-};
-
-export default XmlResolverUploader;
+                export default XmlResolverUploader;
